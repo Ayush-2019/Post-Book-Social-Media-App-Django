@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from django.contrib.auth.models import User, auth
 from django.contrib import messages
-from .models import Profile, Post, Likes, FollowersCount, Comments
+from .models import Profile, Post, Likes, FollowersCount, PComments
 from django.contrib.auth.decorators import login_required
 from itertools import chain
 import random
@@ -173,29 +173,6 @@ def upload(request):
     else:
         return redirect('/')
     
-@login_required(login_url='signin')
-def like(request):
-    username = request.user.username
-    post_id = request.GET.get('post_id')
-
-    post = Post.objects.get(id = post_id)
-
-    like_filter = Likes.objects.filter(post_id = post_id, username = username).first()
-
-    if like_filter == None:
-        new_like = Likes.objects.create(post_id = post_id, username = username)
-        new_like.save()
-
-        post.likes = post.likes+1
-        post.save()
-
-        return redirect('/')
-    
-    else:
-        like_filter.delete()
-        post.likes = post.likes-1
-        post.save()
-        return redirect('/')
 
 @login_required(login_url='signin')
 def profile(request, pk):
@@ -294,19 +271,34 @@ def share_post(request, id):
 def post(request, id):
     
     selected_post = Post.objects.get(id = id)
-    post_comments = Comments.objects.filter(post_id = id)
+    post_comments = PComments.objects.filter(post_id = id)
+    comment_value = request.GET.get('comment_value')
+    comment_id = request.GET.get('comment_id')
 
-    return render(request, 'post.html',{'post':selected_post, 'comments':post_comments})
+    if comment_value is not None:
+        return render(request, 'post.html',{'post':selected_post, 'comments':post_comments, 'comment_value':comment_value, 'comment_id':comment_id})
+
+    else:
+
+        return render(request, 'post.html',{'post':selected_post, 'comments':post_comments})
 
 @login_required(login_url='signin')
 def comment(request, id):
     if request.method == 'POST':
+
         comment = request.POST['comment']
         username = request.user.username
+        comment_id = request.GET.get('comment_id')
         post_id = id
 
-        new_comment = Comments.objects.create(username=username, post_id=post_id, comment=comment)
-        new_comment.save()
+        if comment_id is None:
+            new_comment = PComments.objects.create(username=username, post_id=post_id, comment=comment)
+            new_comment.save()
+        
+        else:
+            comment_obj = PComments.objects.get(id = comment_id)
+            comment_obj.comment = comment
+            comment_obj.save()
 
         return redirect('/post/'+id)
 
@@ -325,3 +317,38 @@ def disable(request, id):
     post.save()
 
     return redirect('/')
+
+
+@login_required(login_url='signin')
+def like_in_profile(request):
+    username = request.user.username
+    post_id = request.GET.get('post_id')
+    profile_username = request.GET.get('profile')
+    from_post = request.GET.get('from_post')
+
+    post = Post.objects.get(id = post_id)
+
+    like_filter = Likes.objects.filter(post_id = post_id, username = username).first()
+
+    if like_filter == None:
+        new_like = Likes.objects.create(post_id = post_id, username = username)
+        new_like.save()
+
+        post.likes = post.likes+1
+        post.save()
+    
+    else:
+        like_filter.delete()
+        post.likes = post.likes-1
+        post.save()
+
+    if from_post is not None:
+            return redirect('/post/' + post_id)
+
+    elif profile_username == None:
+        return redirect('/' + '#post_main_'+ post_id)
+
+    else:
+
+        return redirect('/profile/' + profile_username + '#post_position_' + post_id )
+

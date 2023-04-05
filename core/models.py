@@ -45,7 +45,7 @@ class FollowersCount(models.Model):
         return self.user
     
 
-class Comments(models.Model):
+class PComments(models.Model):
     post_id = models.CharField(max_length=500)
     username = models.CharField(max_length=100)
     comment = models.CharField(max_length=500)
